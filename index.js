@@ -4,7 +4,7 @@ const express = require('express')
 const cors = require('cors')
 const morgan = require('morgan')
 const helmet = require('helmet')
-const redis = require('redis')
+// const redis = require('redis')
 // Openapi Documentation
 const openapi = require('openapi-comment-parser')
 const swagger_ui = require('swagger-ui-express')
@@ -16,11 +16,12 @@ const Hex = require('./lib/hex.js')
 
 
 // --- REDIS ---
-const db = redis.createClient({host:process.env.HOST_REDIS, port:process.env.PORT_REDIS/*,password:process.env.PASSWORD_REDIS*/})
+// const db = redis.createClient({host:process.env.HOST_REDIS, port:process.env.PORT_REDIS,password:process.env.PASSWORD_REDIS})
 
-db.on('connect', () =>  console.log('Connected to Redis...') )
+// db.on('connect', () =>  console.log('Connected to Redis...') )
 // --- === ---
 
+var scoreboard = [{'name':'SopraSteria','score':1},{'name':'EPSI&Co','score':0},{'name':'CyberQuantumTeam','score':0}]
 
 // --- CORS ---
 var CORS_OPTION = {
@@ -118,8 +119,9 @@ app.get('/', cors(CORS_OPTION), async (req, res) => {
  */
 app.get('/leaderboard', cors(CORS_OPTION), async (req, res, next) => {
   //ZREVRANGE scoreboard 0 -1 WITHSCORES
-  const redis_output = await new Promise((resv, rej) => db.ZREVRANGE(`scoreboard`, 0, -1, "WITHSCORES", (err, data) => err? next(err): resv(data)))
-  res.json(redis_output.reduce((r, v, i, a) => i%2==0?[...r, {'name':a[i],'score':a[i+1]}]:r, []))
+  // const redis_output = await new Promise((resv, rej) => db.ZREVRANGE(`scoreboard`, 0, -1, "WITHSCORES", (err, data) => err? next(err): resv(data)))
+  // res.json(redis_output.reduce((r, v, i, a) => i%2==0?[...r, {'name':a[i],'score':a[i+1]}]:r, []))
+  res.json(scoreboard)
 })
 
 
@@ -131,8 +133,9 @@ app.get('/leaderboard', cors(CORS_OPTION), async (req, res, next) => {
  */
 app.post('/searcher/:id', cors(CORS_OPTION), async (req, res, next) => {
   // ZADD scoreboard 1 SopraSteria
-  const new_searcher_in_leaderboard = await new Promise((resv, rej) => db.ZADD(`scoreboard`, 0, req.params.id, (err, data) => err? next(err): resv(data)))
-  res.json(new_searcher_in_leaderboard)
+  // const new_searcher_in_leaderboard = await new Promise((resv, rej) => db.ZADD(`scoreboard`, 0, req.params.id, (err, data) => err? next(err): resv(data)))
+  scoreboard.push({'name':req.params.id,'score':0})
+  res.json(scoreboard)
 })
 
 /**
@@ -142,8 +145,10 @@ app.post('/searcher/:id', cors(CORS_OPTION), async (req, res, next) => {
  */
 app.put('/searcher/:id/:point', cors(CORS_OPTION), async (req, res, next) => {
   // ZINCRBY scoreboard 2 SopraSteria
-  const redis_output = await new Promise((resv, rej) => db.ZINCRBY(`scoreboard`, parseInt(req.params.point), req.params.id, (err, data) => err? next(err): resv(data)))
-  res.json(redis_output)
+  // const redis_output = await new Promise((resv, rej) => db.ZINCRBY(`scoreboard`, parseInt(req.params.point), req.params.id, (err, data) => err? next(err): resv(data)))
+  // res.json(redis_output)
+  scoreboard.find(e=>e.name==req.params.id).score+= parseInt(req.params.point)
+  res.json(scoreboard)
 })
 
 
