@@ -1,5 +1,5 @@
 require('dotenv').config()
-
+// redis-server
 const express = require('express')
 const cors = require('cors')
 const morgan = require('morgan')
@@ -8,7 +8,11 @@ const redis = require('redis')
 // Openapi Documentation
 const openapi = require('openapi-comment-parser')
 const swagger_ui = require('swagger-ui-express')
-
+const { exec } = require("child_process");
+const fs = require('fs')
+const ASN1 = require('./lib/asn1.js')
+const Base64 = require('./lib/base64.js')
+const Hex = require('./lib/hex.js')
 
 
 // --- REDIS ---
@@ -28,6 +32,43 @@ var CORS_OPTION = {
 // --- === ---
 
 
+
+const get_pubkey = async (domain, port) => {
+  new Promise((resolve, reject) => {exec(`openssl s_client -connect ${domain}:${port} | openssl x509 -pubkey -noout > ${domain}_${port}.txt `, (error, stdout, stderr) => resolve)})
+  let cpt=0
+  let file_done = true
+  let pubkey = ""
+  while(cpt<5 || !pubkey.startsWith("-----BEGIN PUBLIC KEY-----")){
+    cpt++
+    await new Promise(r => setTimeout(r, 500))
+    const buffer = fs.readFileSync(`${domain}_${port}.txt`)
+    pubkey = buffer.toString()
+  }
+  return pubkey
+}
+
+
+function RSAModulusAndExponent(pubkey) {
+  var unarmor = /-----BEGIN PUBLIC KEY-----([A-Za-z0-9+\/=\s]+)-----END PUBLIC KEY-----/;
+  try{
+    var pubkeyAsn1 = ASN1.decode(Base64.decode(unarmor.exec(pubkey)[1]));
+    var modulusRaw = pubkeyAsn1.sub[1].sub[0].sub[0];
+    var modulusStart = modulusRaw.header + modulusRaw.stream.pos + 1;
+    var modulusEnd = modulusRaw.length + modulusRaw.stream.pos + modulusRaw.header;
+    var modulusHex = modulusRaw.stream.hexDump(modulusStart, modulusEnd);
+    // var modulus = Hex.decode(modulusHex)
+    let hex = JSON.stringify(modulusHex).replace(/\\n| |"/g,'')
+    
+    if (hex.length % 2) { hex = '0' + hex }
+    return BigInt('0x' + hex).toString(10)
+  }
+  catch(err){ console.log(err)
+    return "Failed validating RSA public key."
+  }
+}
+
+
+
 // --- EXPRESS ---
 const app = express()
 app.enable('trust proxy')
@@ -36,6 +77,26 @@ app.use(morgan('common'))
 app.use(express.json())
 app.options('*', cors())
 app.use('/docs', swagger_ui.serve, swagger_ui.setup(openapi()))
+
+
+
+/**
+ * GET /modulus/:domain/:port
+ * @summary Returns a modulus of SSL certificate present on domain:port
+ * @response 200 - OK
+ */
+app.get('/modulus/:domain/:port', cors(CORS_OPTION), async (req, res) => {
+  // http://localhost:5225/modulus/cyberquantum.methaverse.fr/443
+  pubkey = await get_pubkey(req.params.domain,req.params.port)
+  if(pubkey==""){
+    return "Error occurred, please check domain and port"
+  }
+
+  const modulus = RSAModulusAndExponent(pubkey)
+  res.json(modulus)
+})
+
+
 
 // - HOME -
 /**
