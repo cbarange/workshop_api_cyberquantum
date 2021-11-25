@@ -13,6 +13,7 @@ const fs = require('fs')
 const ASN1 = require('./lib/asn1.js')
 const Base64 = require('./lib/base64.js')
 const Hex = require('./lib/hex.js')
+const bodyParser = require('body-parser')
 
 
 // --- REDIS ---
@@ -75,7 +76,9 @@ const app = express()
 app.enable('trust proxy')
 app.use(helmet())
 app.use(morgan('common'))
+app.use(bodyParser.urlencoded({ extended: true }))
 app.use(express.json())
+// app.use(express.bodyParser())
 app.options('*', cors())
 app.use('/docs', swagger_ui.serve, swagger_ui.setup(openapi()))
 
@@ -99,12 +102,12 @@ app.get('/modulus/:domain/:port', cors(CORS_OPTION), async (req, res) => {
 
 
 /**
- * GET /pubkey/:key
+ * GET /pubkey
  * @summary Returns a modulus of key
  * @response 200 - OK
  */
-app.get('/pubkey/:key', cors(CORS_OPTION), async (req, res) => {
-  const modulus = RSAModulusAndExponent(req.params.key)
+app.post('/pubkey', cors(CORS_OPTION), async (req, res) => {
+  const modulus = RSAModulusAndExponent(req.body.key)
   res.json(modulus)
 })
 
