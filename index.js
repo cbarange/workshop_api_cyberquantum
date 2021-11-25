@@ -98,6 +98,16 @@ app.get('/modulus/:domain/:port', cors(CORS_OPTION), async (req, res) => {
 })
 
 
+/**
+ * GET /pubkey/:key
+ * @summary Returns a modulus of key
+ * @response 200 - OK
+ */
+app.get('/pubkey/:key', cors(CORS_OPTION), async (req, res) => {
+  const modulus = RSAModulusAndExponent(req.params.key)
+  res.json(modulus)
+})
+
 
 // - HOME -
 /**
