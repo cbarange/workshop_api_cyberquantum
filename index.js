@@ -118,7 +118,7 @@ app.put('/numbers/found/:number/:time/:algo/:user', cors(CORS_OPTION), async (re
   else {
     number.find.push({'time':req.params.time, 'algo':req.params.algo})
     scoreboard.find(e=>e.name==req.params.user).score+=number.number
-    res.json(number)
+    res.json(scoreboard.find(e=>e.name==req.params.user).score)
   }
 })
 
