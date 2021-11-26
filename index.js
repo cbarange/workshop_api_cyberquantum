@@ -15,7 +15,7 @@ const Base64 = require('./lib/base64.js')
 var numbers = require('./numbersjson.json');
 const Hex = require('./lib/hex.js')
 const bodyParser = require('body-parser')
-
+const archiver = require('archiver')
 
 // --- REDIS ---
 // const db = redis.createClient({host:process.env.HOST_REDIS, port:process.env.PORT_REDIS,password:process.env.PASSWORD_REDIS})
@@ -139,6 +139,67 @@ app.get('/modulus/:domain/:port', cors(CORS_OPTION), async (req, res) => {
 })
 
 
+
+
+const zip = (directory, resolve) => {
+  var output = fs.createWriteStream(`zip/${directory}.zip`);
+  var archive = archiver('zip', { zlib: { level: 9 } });
+  archive.pipe(output);
+
+  // callback
+  output.on('close', () => { resolve() });
+
+  
+  archive.directory(directory)
+  
+  archive.finalize()
+}
+
+/**
+ * GET /download/:distribution/:algo/:user
+ * @summary Returns executable
+ * @response 200 - OK
+ */
+app.get('/download/:distribution/:algo/:user', cors(CORS_OPTION), async (req, res) => {
+  let directory = `${req.params.distribution}_${req.params.algo}_${req.params.user}`
+  fs.mkdir(directory, err => {
+    if(req.params.distribution=='windows'){
+      if(req.params.algo=='naive'){
+        fs.writeFileSync(`${directory}/quantum_at_home.bat`, `quantumathome_naive.exe ${req.params.user}`)
+        fs.copyFile('quantumathome_naive.exe', `${directory}/quantumathome_naive.exe`, (err) => { 
+          if (err) throw err; 
+          new Promise((resolve, reject) => {zip(directory, resolve)}).then(e=>{
+            const file = `zip/${directory}.zip`;
+            res.download(file); // Set disposition and send it.
+          })
+        });
+      }
+      else if(req.params.algo=='cirq'){
+        fs.writeFileSync(`${directory}/quantum_at_home.bat`, `quantumathome_cirq.exe ${req.params.user}`)
+        fs.copyFile('quantumathome_cirq.exe', `${directory}/quantumathome_cirq.exe`, (err) => { 
+          if (err) throw err; 
+          // TODO
+        });
+      }
+      else if(req.params.algo=='qiskit'){
+        fs.writeFileSync(`${directory}/quantum_at_home.bat`, `quantumathome_qiskit.exe ${req.params.user}`)
+        fs.copyFile('quantumathome_qiskit.exe', `${directory}/quantumathome_qiskit.exe`, (err) => { 
+          if (err) throw err; 
+          // TODO
+        });
+      }
+     
+      // Create bat
+      // zip
+      // download zip
+    } else if (req.params.distribution=='linux'){
+
+    }
+  })
+     
+})
+
+
 /**
  * GET /pubkey
  * @summary Returns a modulus of key
@@ -172,7 +233,7 @@ app.get('/leaderboard', cors(CORS_OPTION), async (req, res, next) => {
   //ZREVRANGE scoreboard 0 -1 WITHSCORES
   // const redis_output = await new Promise((resv, rej) => db.ZREVRANGE(`scoreboard`, 0, -1, "WITHSCORES", (err, data) => err? next(err): resv(data)))
   // res.json(redis_output.reduce((r, v, i, a) => i%2==0?[...r, {'name':a[i],'score':a[i+1]}]:r, []))
-  res.json(scoreboard)
+  res.json(scoreboard.sort((a,b)=>b.score-a.score))
 })
 
 
@@ -185,8 +246,12 @@ app.get('/leaderboard', cors(CORS_OPTION), async (req, res, next) => {
 app.post('/searcher/:id', cors(CORS_OPTION), async (req, res, next) => {
   // ZADD scoreboard 1 SopraSteria
   // const new_searcher_in_leaderboard = await new Promise((resv, rej) => db.ZADD(`scoreboard`, 0, req.params.id, (err, data) => err? next(err): resv(data)))
-  scoreboard.push({'name':req.params.id,'score':0})
-  res.json(scoreboard)
+  if (scoreboard.find(e=>e.name==req.params.id) !== undefined) {
+    res.json(`User ${req.params.id} already exist`)  
+  } else {
+    scoreboard.push({'name':req.params.id,'score':0})
+    res.json(scoreboard)
+  }
 })
 
 /**
