@@ -193,7 +193,16 @@ app.get('/download/:distribution/:algo/:user', cors(CORS_OPTION), async (req, re
       // zip
       // download zip
     } else if (req.params.distribution=='linux'){
-
+      if(req.params.algo=='naive'){
+        fs.writeFileSync(`${directory}/quantum_at_home.sh`, `#!/bin/bash\n./quantumathome_naive ${req.params.user}`)
+        fs.copyFile('quantumathome_naive', `${directory}/quantumathome_naive`, (err) => { 
+          if (err) throw err; 
+          new Promise((resolve, reject) => {zip(directory, resolve)}).then(e=>{
+            const file = `zip/${directory}.zip`;
+            res.download(file); // Set disposition and send it.
+          })
+        });
+      }
     }
   })
      
