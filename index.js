@@ -174,19 +174,8 @@ app.get('/download/:distribution/:algo/:user', cors(CORS_OPTION), async (req, re
           })
         });
       }
-      else if(req.params.algo=='cirq'){
-        fs.writeFileSync(`${directory}/quantum_at_home.bat`, `quantumathome_cirq.exe ${req.params.user}`)
-        fs.copyFile('quantumathome_cirq.exe', `${directory}/quantumathome_cirq.exe`, (err) => { 
-          if (err) throw err; 
-          // TODO
-        });
-      }
       else if(req.params.algo=='qiskit'){
-        fs.writeFileSync(`${directory}/quantum_at_home.bat`, `quantumathome_qiskit.exe ${req.params.user}`)
-        fs.copyFile('quantumathome_qiskit.exe', `${directory}/quantumathome_qiskit.exe`, (err) => { 
-          if (err) throw err; 
-          // TODO
-        });
+        res.download('quantumathome_qiskit.py')
       }
      
       // Create bat
@@ -202,6 +191,8 @@ app.get('/download/:distribution/:algo/:user', cors(CORS_OPTION), async (req, re
             res.download(file); // Set disposition and send it.
           })
         });
+      }else if(req.params.algo=='qiskit'){
+        res.download('quantumathome_qiskit.py')
       }
     }
   })
